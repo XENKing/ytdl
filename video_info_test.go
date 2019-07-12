@@ -47,22 +47,6 @@ func TestGetDownloadURL(t *testing.T) {
 	}
 }
 
-func TestAgeRestrictedVideo(t *testing.T) {
-	videoUrl := "https://www.youtube.com/watch?v=mQfoNyD3b6Q"
-
-	info, err := GetVideoInfo(videoUrl)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	format := info.Formats.Best(FormatResolutionKey)[0]
-
-	_, err = info.GetDownloadURL(format)
-	if err != nil {
-		t.Error("Failed test case:", "Age Restricted video")
-	}
-}
-
 func TestDownloadVideo(t *testing.T) {
 	info, err := GetVideoInfo("https://www.youtube.com/watch?v=FrG4TEcSuRg")
 	if err != nil {
