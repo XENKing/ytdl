@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"encoding/xml"
+	"encoding/gob"
 	"errors"
 	"fmt"
 	"io"
@@ -16,6 +17,7 @@ import (
 	"time"
 
 	"github.com/PuerkitoBio/goquery"
+	"github.com/buger/jsonparser"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -230,23 +232,67 @@ func getVideoInfoFromHTML(id string, html []byte) (*VideoInfo, error) {
 	}
 
 	inf := jsonConfig["args"].(map[string]interface{})
-	if status, ok := inf["status"].(string); ok && status == "fail" {
-		return nil, fmt.Errorf("Error %d:%s", inf["errorcode"], inf["reason"])
-	}
-	if a, ok := inf["author"].(string); ok {
-		info.Author = a
-	} else {
-		log.Debug("Unable to extract author")
+	log.Debug("Player response ", inf["player_response"])
+
+	interfaceToBytes := func (key interface{}) ([]byte, error) {
+		var buf bytes.Buffer
+		enc := gob.NewEncoder(&buf)
+		err := enc.Encode(key)
+		if err != nil {
+		return nil, err
+		}
+		return buf.Bytes(), nil
 	}
 
-	if length, ok := inf["length_seconds"].(string); ok {
-		if duration, err := strconv.ParseInt(length, 10, 64); err == nil {
-			info.Duration = time.Second * time.Duration(duration)
-		} else {
-			log.Debug("Unable to parse duration string: ", length)
+	var status = ""
+	var reason = ""
+
+	extractPaths := [][]string{
+		{"playabilityStatus", "status"},
+		{"videoDetails", "author"},
+		{"videoDetails", "lengthSeconds"},
+	}
+
+	playerResponce, err := interfaceToBytes(inf["player_response"])
+	if err != nil {
+		log.Info("Failed to get player response json")
+		return nil, fmt.Errorf("Failed to get player response %s", err)
+	}
+
+	jsonparser.EachKey(playerResponce, func(idx int, value []byte, vt jsonparser.ValueType, err error){
+		switch idx {
+		case 0:
+			status = string(value)
+			log.Debug("Extracted status ", status)
+			if err == nil && status == "fail" {
+				if r, err := jsonparser.GetString(playerResponce, "playabilityStatus", "reason"); err == nil {
+					reason = r
+					return
+				}
+			}
+		case 1:
+			if err == nil{
+				info.Author = string(value)
+				log.Debug("Extracted author ", info.Author)
+			} else {
+				log.Debug("Unable to extract author ", err)
+			}
+		case 2:
+			if err == nil {
+				if duration, err := jsonparser.ParseInt(value); err == nil {
+					info.Duration = time.Second * time.Duration(duration)
+					log.Debug("Extracted duration ", info.Duration)
+				} else {
+					log.Debug("Unable to parse duration string: ", string(value))
+				}
+			} else {
+				log.Debug("Unable to extract duration ", err)
+			}
 		}
-	} else {
-		log.Debug("Unable to extract duration")
+	}, extractPaths...)
+
+	if reason != "" {
+		return nil, fmt.Errorf("Error %s", reason)
 	}
 
 	// For the future maybe

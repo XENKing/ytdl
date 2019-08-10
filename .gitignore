@@ -34,6 +34,9 @@ _testmain.go
 # KDE directory preferences
 .directory
 
+# IDEA directory
+.idea
+
 # Linux trash folder which might appear on any partition or disk
 .Trash-*
 
@@ -64,3 +67,6 @@ Icon
 Network Trash Folder
 Temporary Items
 .apdisk
+
+# Source folder
+src

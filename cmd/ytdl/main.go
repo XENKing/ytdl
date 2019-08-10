@@ -15,9 +15,9 @@ import (
 	"github.com/codegangsta/cli"
 	"github.com/mattn/go-colorable"
 	"github.com/mattn/go-isatty"
-	"github.com/rylio/ytdl"
-	log "github.com/sirupsen/logrus"
 	"github.com/olekukonko/tablewriter"
+	log "github.com/sirupsen/logrus"
+	"github.com/xenking/ytdl"
 )
 
 type options struct {
